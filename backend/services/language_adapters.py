@@ -46,13 +46,20 @@ class MultilingualXLMRoBERTaAdapter(BaseLanguageAdapter):
     """
 
     # Distress & emotion lexicon markers for Hindi & English
-    HINDI_FEAR_KEYWORDS = ["डर", "खतरा", "दहशत", "हमला", "मारपीट", "अत्याचार", "खौफ", "सुरक्षा", "बचाओ"]
-    HINDI_ANXIETY_KEYWORDS = ["चिंता", "घबराहट", "परेशान", "तनाव", "डर लग रहा", "मदद चाहिए"]
+    HINDI_FEAR_KEYWORDS = [
+        "डर", "खतरा", "दहशत", "हमला", "मारपीट", "अत्याचार", "खौफ", "सुरक्षा", "बचाओ",
+        "पीछा", "इमरजेंसी", "धमकी", "कोई बाहर है", "नजर रख रहा"
+    ]
+    HINDI_ANXIETY_KEYWORDS = ["चिंता", "घबराहट", "परेशान", "तनाव", "डर लग रहा", "मदद चाहिए", "आपातकालीन"]
     HINDI_SADNESS_KEYWORDS = ["दुखी", "उदास", "अकेला", "रोना", "निराशा", "दर्द"]
     HINDI_ANGER_KEYWORDS = ["गुस्सा", "नफरत", "अन्याय", "गाली", "धमकी"]
 
-    ENG_FEAR_KEYWORDS = ["fear", "scared", "afraid", "danger", "attack", "violence", "threat", "unsafe", "help"]
-    ENG_ANXIETY_KEYWORDS = ["anxious", "worried", "panic", "stress", "nervous", "distress"]
+    ENG_FEAR_KEYWORDS = [
+        "fear", "scared", "afraid", "danger", "attack", "violence", "threat", "unsafe", "help",
+        "followed", "stalking", "emergency", "someone outside", "being watched", "following me",
+        "stalker", "sos", "urgent", "harassment", "trapped", "chasing"
+    ]
+    ENG_ANXIETY_KEYWORDS = ["anxious", "worried", "panic", "stress", "nervous", "distress", "scared"]
     ENG_SADNESS_KEYWORDS = ["sad", "depressed", "lonely", "hopeless", "crying", "hurt"]
     ENG_ANGER_KEYWORDS = ["angry", "furious", "abuse", "hate", "unjust"]
 
@@ -72,7 +79,7 @@ class MultilingualXLMRoBERTaAdapter(BaseLanguageAdapter):
 
         for w in distress_words:
             if w in text_lower:
-                neg_count += 1
+                neg_count += 2 if w in (self.ENG_FEAR_KEYWORDS + self.HINDI_FEAR_KEYWORDS) else 1
 
         for w in positive_words:
             if w in text_lower:
@@ -93,7 +100,7 @@ class MultilingualXLMRoBERTaAdapter(BaseLanguageAdapter):
         else:
             label = "neutral"
 
-        confidence = round(min(0.95, 0.65 + 0.10 * neg_count), 2)
+        confidence = round(min(0.95, 0.70 + 0.10 * neg_count), 2)
         return sentiment_score, label, confidence
 
     def classify_emotions(self, text: str) -> Dict[str, float]:
@@ -109,11 +116,11 @@ class MultilingualXLMRoBERTaAdapter(BaseLanguageAdapter):
         if total_hits == 0:
             return {"fear": 0.10, "anxiety": 0.15, "sadness": 0.10, "anger": 0.05, "neutral": 0.60}
 
-        raw_fear = 0.10 + 0.30 * fear_hits
+        raw_fear = 0.10 + 0.45 * fear_hits
         raw_anxiety = 0.15 + 0.25 * anxiety_hits
         raw_sadness = 0.10 + 0.20 * sadness_hits
         raw_anger = 0.05 + 0.20 * anger_hits
-        raw_neutral = max(0.02, 0.40 - 0.10 * total_hits)
+        raw_neutral = max(0.01, 0.40 - 0.15 * total_hits)
 
         total_sum = raw_fear + raw_anxiety + raw_sadness + raw_anger + raw_neutral
 

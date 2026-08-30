@@ -56,18 +56,17 @@ class DynamicDistressEngine:
             # Fallback to blended emotion distress if audio is absent
             voice_stress_val = (fear_val + anxiety_val + sentiment_distress) / 3.0
 
-        # 4. Behavioral Signals
-        # Missed Check-ins: 0 = 0 pts, 5+ = 100 pts
-        missed = int(behavioral_signals.get("missed_checkins", 0))
-        missed_val = min(100.0, (missed / 5.0) * 100.0)
+        # 4. Behavioral Signals (If omitted during acute fear/threat intake, baseline scales with fear severity)
+        threat_baseline = max(fear_val, sentiment_distress) if (fear_val >= 50.0 or sentiment_distress >= 80.0) else 0.0
 
-        # Response Latency (hours): 0h = 0 pts, 72h+ = 100 pts
-        latency_hrs = float(behavioral_signals.get("response_latency_hours", 0.0))
-        latency_val = min(100.0, (latency_hrs / 72.0) * 100.0)
+        missed = int(behavioral_signals.get("missed_checkins", -1))
+        missed_val = min(100.0, (missed / 5.0) * 100.0) if missed >= 0 else threat_baseline
 
-        # Drop-off Rate (0.0 to 1.0 -> 0 to 100)
-        drop_off = float(behavioral_signals.get("drop_off_rate", 0.0))
-        drop_off_val = min(100.0, max(0.0, drop_off * 100.0))
+        latency_hrs = behavioral_signals.get("response_latency_hours")
+        latency_val = min(100.0, (float(latency_hrs) / 72.0) * 100.0) if latency_hrs is not None else threat_baseline
+
+        drop_off = behavioral_signals.get("drop_off_rate")
+        drop_off_val = min(100.0, max(0.0, float(drop_off) * 100.0)) if drop_off is not None else threat_baseline
 
         return {
             "fear_emotion": fear_val,
