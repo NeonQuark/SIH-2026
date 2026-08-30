@@ -1,6 +1,6 @@
 from __future__ import annotations
 import hashlib, hmac, json, os, secrets, sqlite3
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
@@ -12,8 +12,6 @@ from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parents[1]; DATA = ROOT / "data"; DB = DATA / "app.db"; MODEL = DATA / "risk_model.joblib"
 DATA.mkdir(exist_ok=True); SECRET = os.getenv("APP_SECRET", "sih26094-demo-secret-change-in-production")
-app = FastAPI(title="SaathiCare API", version="1.0.0", description="Demo-only mental health screening risk-estimation API. Not a diagnostic system.")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 @contextmanager
 def conn():
@@ -55,11 +53,15 @@ class Note(BaseModel): body:str=Field(min_length=1,max_length=3000)
 class ProfileUpdate(BaseModel): name:str=Field(min_length=2); phone:str=""
 class Resource(BaseModel): title:str=Field(min_length=2); category:str; contact:str=""; description:str=""
 
-@app.on_event("startup")
 def startup():
     if not MODEL.exists():
         from backend.train_model import train; train()
     init_db()
+    try:
+        from backend.db.migrations.migration_001_initial_schema import run_migration
+        run_migration()
+    except Exception as e:
+        pass
     with conn() as c:
         if not c.execute("SELECT 1 FROM users WHERE email='counselor@saathicare.demo'").fetchone():
             c.execute("INSERT INTO users(name,email,password,role,phone,created_at) VALUES (?,?,?,?,?,?)",("Dr. Ananya Rao","counselor@saathicare.demo",hash_pw("Demo@123"),"counselor","",now()))
@@ -67,8 +69,292 @@ def startup():
         if not c.execute("SELECT 1 FROM resources").fetchone():
             c.executemany("INSERT INTO resources(title,category,contact,description) VALUES (?,?,?,?)", [("Tele-MANAS","24/7 mental health support","14416 or 1-800-891-4416","National tele-mental-health support service."),("Emergency services","Immediate safety","112","For immediate danger or urgent emergency assistance."),("Grounding practice","Self-care","","5-4-3-2-1 senses exercise for a difficult moment.")])
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    startup()
+    yield
+
+app = FastAPI(title="SaathiCare API", version="1.0.0", description="Demo-only mental health screening risk-estimation API. Not a diagnostic system.", lifespan=lifespan)
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+# Ensure DB & seed data are initialized on import
+startup()
+
+class NLPTextRequest(BaseModel): text:str; language:str|None=None
+
 @app.get("/health")
 def health(): return {"status":"ok","disclaimer":"Demo screening only; not medical diagnosis."}
+
+@app.post("/api/nlp/analyze-text")
+def analyze_nlp_text(req: NLPTextRequest):
+    from backend.services.nlp_pipeline import pipeline_service
+    return pipeline_service.analyze_text(req.text, req.language)
+
+from fastapi import UploadFile, File, Form
+
+@app.post("/api/nlp/analyze-audio")
+async def analyze_nlp_audio(
+    file: UploadFile = File(...),
+    transcript_text: str | None = Form(None),
+    language: str | None = Form(None)
+):
+    from backend.services.nlp_pipeline import pipeline_service
+    content = await file.read()
+    return pipeline_service.analyze_audio(content, transcript_text=transcript_text, language=language)
+
+class ChatbotIntakeRequest(BaseModel):
+    victim_id: str
+    message: str
+    bot_session_id: str | None = None
+    user_intent: str | None = None
+    session_duration_sec: int | None = None
+    language: str | None = None
+
+class IVRSIntakeRequest(BaseModel):
+    victim_id: str
+    transcribed_text: str | None = None
+    call_sid: str | None = None
+    call_duration_sec: int | None = None
+    caller_state: str | None = None
+
+class SMSIntakeRequest(BaseModel):
+    victim_id: str
+    sms_text: str
+    sms_sid: str | None = None
+    delivery_status: str | None = "delivered"
+    sender_shortcode: str | None = None
+
+class MobileAppIntakeRequest(BaseModel):
+    victim_id: str
+    message: str
+    app_version: str | None = None
+    device_os: str | None = None
+    network_type: str | None = None
+    coarse_location: str | None = None
+
+class WebPortalIntakeRequest(BaseModel):
+    victim_id: str
+    message: str
+    web_session_id: str | None = None
+    user_agent: str | None = None
+    browser_language: str | None = None
+
+@app.post("/api/intake/chatbot")
+def process_chatbot_intake(req: ChatbotIntakeRequest):
+    from backend.services.intake_adapters import intake_service
+    return intake_service.process_chatbot_intake(
+        victim_id=req.victim_id,
+        message=req.message,
+        bot_session_id=req.bot_session_id,
+        user_intent=req.user_intent,
+        session_duration_sec=req.session_duration_sec,
+        language=req.language
+    )
+
+@app.post("/api/intake/ivrs")
+def process_ivrs_intake(req: IVRSIntakeRequest):
+    from backend.services.intake_adapters import intake_service
+    return intake_service.process_ivrs_intake(
+        victim_id=req.victim_id,
+        transcribed_text=req.transcribed_text,
+        call_sid=req.call_sid,
+        call_duration_sec=req.call_duration_sec,
+        caller_state=req.caller_state
+    )
+
+@app.post("/api/intake/sms")
+def process_sms_intake(req: SMSIntakeRequest):
+    from backend.services.intake_adapters import intake_service
+    return intake_service.process_sms_intake(
+        victim_id=req.victim_id,
+        sms_text=req.sms_text,
+        sms_sid=req.sms_sid,
+        delivery_status=req.delivery_status,
+        sender_shortcode=req.sender_shortcode
+    )
+
+@app.post("/api/intake/mobile-app")
+def process_mobile_app_intake(req: MobileAppIntakeRequest):
+    from backend.services.intake_adapters import intake_service
+    return intake_service.process_mobile_app_intake(
+        victim_id=req.victim_id,
+        message=req.message,
+        app_version=req.app_version,
+        device_os=req.device_os,
+        network_type=req.network_type,
+        coarse_location=req.coarse_location
+    )
+
+@app.post("/api/intake/web-portal")
+def process_web_portal_intake(req: WebPortalIntakeRequest):
+    from backend.services.intake_adapters import intake_service
+    return intake_service.process_web_portal_intake(
+        victim_id=req.victim_id,
+        message=req.message,
+        web_session_id=req.web_session_id,
+        user_agent=req.user_agent,
+        browser_language=req.browser_language
+    )
+
+class DistressCalculationRequest(BaseModel):
+    victim_id: str | None = None
+    nlp_output: dict = Field(default_factory=dict)
+    behavioral_signals: dict = Field(default_factory=dict)
+
+@app.post("/api/distress/calculate")
+def calculate_distress(req: DistressCalculationRequest):
+    from backend.services.distress_engine import distress_engine
+    return distress_engine.calculate_score(
+        nlp_output=req.nlp_output,
+        behavioral_signals=req.behavioral_signals,
+        victim_id=req.victim_id,
+        save_to_db=True
+    )
+
+@app.get("/api/distress/history/{victim_id}")
+def get_distress_history(victim_id: str, window_days: int = 30):
+    from backend.services.distress_engine import distress_engine
+    return distress_engine.compute_longitudinal_trend(victim_id=victim_id, window_days=window_days)
+
+class RiskPredictionRequest(BaseModel):
+    scores: list[float] = Field(default_factory=list)
+
+@app.post("/api/risk/predict")
+def predict_risk(req: RiskPredictionRequest):
+    from backend.ml.escalation_model import predictive_risk_model
+    return predictive_risk_model.predict(req.scores)
+
+@app.get("/api/risk/predict/{victim_id}")
+def predict_victim_risk(victim_id: str):
+    from backend.services.predictive_risk_service import predict_risk_for_victim
+    return predict_risk_for_victim(victim_id)
+
+class AlertDispatchRequest(BaseModel):
+    victim_id: str
+    risk_prediction: dict
+
+class AlertAcknowledgeRequest(BaseModel):
+    officer_name: str
+    notes: str | None = None
+
+@app.post("/api/alerts/dispatch")
+def dispatch_realtime_alert(req: AlertDispatchRequest):
+    from backend.services.alerting_service import alerting_service
+    return alerting_service.dispatch_alert(req.victim_id, req.risk_prediction)
+
+@app.get("/api/alerts/active")
+def get_active_realtime_alerts(jurisdiction_level: str | None = None):
+    from backend.services.alerting_service import alerting_service
+    return alerting_service.get_active_alerts(jurisdiction_level=jurisdiction_level)
+
+@app.patch("/api/alerts/{alert_id}/acknowledge")
+def acknowledge_realtime_alert(alert_id: int, req: AlertAcknowledgeRequest):
+    from backend.services.alerting_service import alerting_service
+    return alerting_service.acknowledge_alert(alert_id=alert_id, officer_name=req.officer_name, notes=req.notes)
+
+class InterventionRecommendRequest(BaseModel):
+    victim_id: str
+    case_type: str
+    risk_profile: dict = Field(default_factory=dict)
+
+class InterventionFeedbackRequest(BaseModel):
+    status: str
+    feedback_notes: str | None = None
+
+@app.post("/api/interventions/recommend")
+def recommend_interventions(req: InterventionRecommendRequest):
+    from backend.services.intervention_engine import intervention_engine
+    return intervention_engine.get_recommendations(req.victim_id, req.case_type, req.risk_profile)
+
+@app.get("/api/interventions/rules")
+def get_intervention_rules():
+    from backend.services.intervention_engine import intervention_engine
+    return intervention_engine.load_rules()
+
+@app.put("/api/interventions/rules")
+def update_intervention_rules(rules: dict):
+    from backend.services.intervention_engine import intervention_engine
+    return intervention_engine.save_rules(rules)
+
+@app.patch("/api/interventions/{recommendation_id}/feedback")
+def log_intervention_feedback(recommendation_id: int, req: InterventionFeedbackRequest):
+    from backend.services.intervention_engine import intervention_engine
+    return intervention_engine.log_feedback(recommendation_id, req.status, req.feedback_notes)
+
+@app.get("/api/dashboard/metrics")
+def get_dashboard_metrics(
+    role: str = "national_officer",
+    district: str | None = None,
+    state: str | None = None
+):
+    from backend.services.dashboard_service import dashboard_service
+    return dashboard_service.get_dashboard_metrics(role=role, district=district, state=state)
+
+@app.get("/api/dashboard/cases")
+def get_high_risk_cases(
+    role: str = "national_officer",
+    district: str | None = None,
+    state: str | None = None,
+    limit: int = 50
+):
+    from backend.services.dashboard_service import dashboard_service
+    return dashboard_service.get_high_risk_cases(role=role, district=district, state=state, limit=limit)
+
+@app.get("/api/dashboard/case-timeline/{victim_id}")
+def get_case_timeline(
+    victim_id: str,
+    role: str = "national_officer",
+    district: str | None = None,
+    state: str | None = None,
+    user_id: str = "system_user"
+):
+    from backend.services.dashboard_service import dashboard_service
+    from backend.services.privacy_service import privacy_service
+    # Audit log every access to individual victim case timelines
+    privacy_service.audit_access(
+        user_id=user_id,
+        user_role=role,
+        action="READ_CASE_TIMELINE",
+        resource_type="victim_profile",
+        resource_id=victim_id,
+        details={"district": district, "state": state}
+    )
+    return dashboard_service.get_case_timeline(victim_id=victim_id, role=role, district=district, state=state)
+
+class ConsentUpdateRequest(BaseModel):
+    victim_id: str
+    channel: str
+    consent_granted: bool
+    purpose: str | None = None
+
+class DataPurgeRequest(BaseModel):
+    retention_days: int = 365
+
+@app.post("/api/privacy/consent")
+def update_channel_consent(req: ConsentUpdateRequest):
+    from backend.services.privacy_service import privacy_service
+    return privacy_service.update_channel_consent(req.victim_id, req.channel, req.consent_granted, req.purpose)
+
+@app.get("/api/privacy/consent/{victim_id}")
+def get_channel_consents(victim_id: str):
+    from backend.services.privacy_service import privacy_service
+    return privacy_service.get_channel_consents(victim_id)
+
+@app.post("/api/privacy/purge-expired")
+def purge_expired_data(req: DataPurgeRequest):
+    from backend.services.privacy_service import privacy_service
+    return privacy_service.purge_expired_data(retention_days=req.retention_days)
+
+@app.delete("/api/privacy/victim/{victim_id}")
+def erase_victim_data(victim_id: str):
+    from backend.services.privacy_service import privacy_service
+    return privacy_service.erase_victim_data(victim_id)
+
+@app.get("/api/privacy/audit-logs")
+def get_audit_logs(resource_id: str | None = None, limit: int = 100):
+    from backend.services.privacy_service import privacy_service
+    return privacy_service.get_audit_logs(resource_id=resource_id, limit=limit)
+
 @app.post("/auth/register")
 def register(x:Register):
     try:

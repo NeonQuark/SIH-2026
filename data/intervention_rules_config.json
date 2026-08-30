@@ -1,0 +1,151 @@
+{
+  "sexual_assault_rape": {
+    "mandatory": [
+      "medical",
+      "counselling",
+      "legal_aid"
+    ],
+    "risk_dependent": {
+      "low": [
+        "rehabilitation"
+      ],
+      "medium": [
+        "financial_aid",
+        "rehabilitation"
+      ],
+      "high": [
+        "relocation",
+        "financial_aid",
+        "rehabilitation"
+      ],
+      "critical": [
+        "witness_protection",
+        "relocation",
+        "financial_aid",
+        "rehabilitation"
+      ]
+    }
+  },
+  "murder_homicide": {
+    "mandatory": [
+      "witness_protection",
+      "legal_aid",
+      "financial_aid"
+    ],
+    "risk_dependent": {
+      "low": [
+        "counselling"
+      ],
+      "medium": [
+        "counselling",
+        "rehabilitation"
+      ],
+      "high": [
+        "relocation",
+        "counselling",
+        "rehabilitation"
+      ],
+      "critical": [
+        "relocation",
+        "counselling",
+        "rehabilitation"
+      ]
+    }
+  },
+  "witness_intimidation": {
+    "mandatory": [
+      "witness_protection",
+      "legal_aid"
+    ],
+    "risk_dependent": {
+      "low": [
+        "counselling"
+      ],
+      "medium": [
+        "counselling",
+        "relocation"
+      ],
+      "high": [
+        "relocation",
+        "financial_aid"
+      ],
+      "critical": [
+        "relocation",
+        "financial_aid",
+        "rehabilitation"
+      ]
+    }
+  },
+  "caste_violence": {
+    "mandatory": [
+      "legal_aid",
+      "counselling"
+    ],
+    "risk_dependent": {
+      "low": [
+        "medical"
+      ],
+      "medium": [
+        "medical",
+        "financial_aid"
+      ],
+      "high": [
+        "medical",
+        "financial_aid",
+        "rehabilitation"
+      ],
+      "critical": [
+        "witness_protection",
+        "relocation",
+        "financial_aid",
+        "rehabilitation"
+      ]
+    }
+  },
+  "land_grab_eviction": {
+    "mandatory": [
+      "legal_aid"
+    ],
+    "risk_dependent": {
+      "low": [
+        "financial_aid"
+      ],
+      "medium": [
+        "financial_aid",
+        "counselling"
+      ],
+      "high": [
+        "relocation",
+        "financial_aid",
+        "counselling"
+      ],
+      "critical": [
+        "witness_protection",
+        "relocation",
+        "financial_aid",
+        "rehabilitation"
+      ]
+    }
+  },
+  "verbal_abuse_outrage": {
+    "mandatory": [
+      "counselling",
+      "legal_aid"
+    ],
+    "risk_dependent": {
+      "low": [],
+      "medium": [
+        "financial_aid"
+      ],
+      "high": [
+        "financial_aid",
+        "rehabilitation"
+      ],
+      "critical": [
+        "witness_protection",
+        "financial_aid",
+        "rehabilitation"
+      ]
+    }
+  }
+}
