@@ -439,3 +439,11 @@ def archive_resource(rid:int,authorization:str|None=Header(None)):
     counselor(authorization)
     with conn() as c: c.execute("UPDATE resources SET active=0 WHERE id=?",(rid,))
     return {"message":"Resource archived"}
+
+# Mount Web Application Frontend UI at /
+from fastapi.staticfiles import StaticFiles
+import os
+
+web_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "web")
+if os.path.exists(web_dir):
+    app.mount("/", StaticFiles(directory=web_dir, html=True), name="static")
