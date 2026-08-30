@@ -226,6 +226,17 @@ class DynamicDistressEngine:
         total_score = round(sum(c["impact_points"] for c in feature_contributions), 1)
         total_score = max(0.0, min(100.0, total_score))
         risk_level = self._categorize_risk(total_score)
+
+        # Apply Hard-Trigger Safety Override
+        hard_trigger_override = bool(nlp_output.get("hard_trigger_detected"))
+        override_note = None
+
+        if hard_trigger_override:
+            if risk_level in ["Low", "Moderate"]:
+                risk_level = "High"
+            total_score = max(total_score, 68.0)
+            override_note = "Hard-trigger safety override applied — flagged for mandatory human review regardless of computed score."
+
         ts_now = utcnow()
 
         # Database persistence
@@ -281,6 +292,8 @@ class DynamicDistressEngine:
             "explainability": {
                 "method": "Additive Rule-Based Feature Attribution",
                 "total_score": total_score,
+                "hard_trigger_override": hard_trigger_override,
+                "safety_override_note": override_note,
                 "feature_contributions": feature_contributions
             }
         }

@@ -65,9 +65,16 @@ class RealtimeAlertingService:
         db: Optional[Session] = None
     ) -> Dict[str, Any]:
         """Process risk event, apply deduplication cooldown, route jurisdictionally, dispatch multi-channel alerts, and log SLA."""
-        risk_tier = risk_prediction.get("risk_tier", "high")
-        if risk_tier not in ["high", "critical"]:
-            return {"status": "ignored", "reason": f"Risk tier '{risk_tier}' does not require escalation alert"}
+        hard_trigger_detected = bool(risk_prediction.get("hard_trigger_detected"))
+        alert_reason = "hard_trigger_override" if hard_trigger_detected else risk_prediction.get("alert_reason", "model_driven_escalation")
+
+        if hard_trigger_detected:
+            risk_tier = "critical"
+            risk_prediction["risk_tier"] = "critical"
+        else:
+            risk_tier = risk_prediction.get("risk_tier", "high")
+            if risk_tier not in ["high", "critical"]:
+                return {"status": "ignored", "reason": f"Risk tier '{risk_tier}' does not require escalation alert"}
 
         close_session = False
         if db is None:
@@ -123,8 +130,8 @@ class RealtimeAlertingService:
             # 4. Database Log & SLA Tracking
             alert = RiskAlert(
                 victim_id=victim_id,
-                trigger_reason=f"Predictive Risk Tier '{risk_tier}' threshold breach",
-                threshold_crossed=f"Risk Tier: {risk_tier}",
+                trigger_reason=f"[{alert_reason}] Risk Tier '{risk_tier}' escalation threshold breach",
+                threshold_crossed=f"Risk Tier: {risk_tier} (Reason: {alert_reason})",
                 assigned_officer_or_counsellor=routing["recipient_role"],
                 status="Open",
                 jurisdiction_level=routing["jurisdiction_level"],
@@ -146,6 +153,7 @@ class RealtimeAlertingService:
                 "alert_id": alert.id,
                 "victim_id": victim_id,
                 "risk_tier": risk_tier,
+                "alert_reason": alert_reason,
                 "jurisdiction_level": routing["jurisdiction_level"],
                 "assigned_recipient": routing["recipient_role"],
                 "delivery_channels": [c["channel"] for c in channels],

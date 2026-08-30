@@ -4,6 +4,26 @@ from backend.services.language_adapters import (
 )
 from backend.services.voice_stress import VoiceStressAnalyzer
 
+HARD_TRIGGER_TERMS = [
+    # 1. Self-Harm & Suicidal Ideation
+    "kill myself", "end it", "end it all", "no point living", "khatam kar dena", "marna chahta",
+    "marne", "suicide", "end my life", "better off without me", "no point continuing",
+    "dying", "want to die", "mar jaunga", "jaan de dunga", "no escape from them except dying",
+    "don't want to wake up",
+    
+    # 2. Explicit Weapon Mentions
+    "knife", "gun", "chaku", "pistol", "bandook", "iron rod", "iron rods", "sword", "acid", "firearm", "weapon",
+    
+    # 3. Explicit Violence Threats
+    "will kill you", "marunga", "jaan se maar dunga", "threatened to kill", "grabbed my neck", "throat",
+    "gundey", "beat me", "break your legs", "murder", "harm", "hathiyaar",
+    
+    # 4. Immediate Physical Danger Phrases
+    "he's outside", "someone's breaking in", "koi ghar mein ghus raha hai", "door pe kisi ne",
+    "standing outside", "following me", "peecha kar raha", "outside my window", "bad man came", "chasing me",
+    "observing my residence", "approached my premises"
+]
+
 class NLPEmotionPipeline:
     """Standalone modular NLP & Audio Emotion AI Pipeline Service.
     
@@ -27,19 +47,7 @@ class NLPEmotionPipeline:
         return self.multilingual_adapter
 
     def analyze_text(self, text: str, language: Optional[str] = None) -> Dict[str, Any]:
-        """Analyze raw text input (from Chatbot, SMS, or Web Portal).
-        
-        Returns normalized JSON schema:
-        {
-          "sentiment_score": float,
-          "sentiment_label": str,
-          "emotion_labels": dict,
-          "voice_stress_score": null,
-          "acoustic_features": null,
-          "language": str,
-          "confidence": float
-        }
-        """
+        """Analyze raw text input (from Chatbot, SMS, or Web Portal)."""
         if not text or not text.strip():
             return {
                 "sentiment_score": 0.0,
@@ -48,7 +56,10 @@ class NLPEmotionPipeline:
                 "voice_stress_score": None,
                 "acoustic_features": None,
                 "language": language or "en",
-                "confidence": 1.0
+                "confidence": 1.0,
+                "hard_trigger_detected": False,
+                "hard_trigger_matched_terms": [],
+                "low_confidence_review_needed": False
             }
 
         lang = language or detect_language(text)
@@ -57,6 +68,18 @@ class NLPEmotionPipeline:
         sentiment_score, sentiment_label, confidence = adapter.analyze_sentiment(text)
         emotion_labels = adapter.classify_emotions(text)
 
+        # Hard-trigger safety override evaluation
+        text_lower = text.lower()
+        matched_triggers = [t for t in HARD_TRIGGER_TERMS if t in text_lower]
+        hard_trigger_detected = len(matched_triggers) > 0
+
+        if hard_trigger_detected:
+            sentiment_score = -1.0
+            sentiment_label = "negative"
+            emotion_labels["fear"] = max(emotion_labels.get("fear", 0.0), 0.85)
+
+        low_confidence_review_needed = confidence < 0.50
+
         return {
             "sentiment_score": sentiment_score,
             "sentiment_label": sentiment_label,
@@ -64,7 +87,10 @@ class NLPEmotionPipeline:
             "voice_stress_score": None,
             "acoustic_features": None,
             "language": lang,
-            "confidence": confidence
+            "confidence": confidence,
+            "hard_trigger_detected": hard_trigger_detected,
+            "hard_trigger_matched_terms": matched_triggers,
+            "low_confidence_review_needed": low_confidence_review_needed
         }
 
     def analyze_audio(
