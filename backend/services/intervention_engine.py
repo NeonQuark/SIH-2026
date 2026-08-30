@@ -23,6 +23,15 @@ class InterventionRecommendationEngine:
         "verbal_abuse": "verbal_abuse_outrage"
     }
 
+    DEFAULT_RULES = {
+        "sexual_assault_rape": ["medical", "counselling", "legal_aid", "police_protection", "compensation"],
+        "murder_homicide": ["counselling", "witness_protection", "financial_aid", "legal_aid"],
+        "witness_intimidation": ["witness_protection", "relocation", "legal_aid"],
+        "caste_violence": ["counselling", "relocation", "financial_aid", "rehabilitation"],
+        "land_grab_eviction": ["legal_aid", "rehabilitation", "compensation"],
+        "verbal_abuse_outrage": ["counselling", "legal_aid"]
+    }
+
     def __init__(self):
         self.rules = self.load_rules()
 
@@ -30,13 +39,19 @@ class InterventionRecommendationEngine:
         if RULES_FILE.exists():
             try:
                 with open(RULES_FILE, "r", encoding="utf-8") as f:
-                    return json.load(f)
+                    data = json.load(f)
+                    if isinstance(data, dict) and "rules" in data and isinstance(data["rules"], dict):
+                        return data["rules"]
+                    if isinstance(data, dict) and len(data) > 0 and "sexual_assault_rape" in data:
+                        return data
             except Exception:
                 pass
-        return {}
+        return dict(self.DEFAULT_RULES)
 
     def save_rules(self, new_rules: Dict[str, Any]) -> Dict[str, Any]:
         """Update and persist admin-editable rule set."""
+        if "rules" in new_rules and isinstance(new_rules["rules"], dict):
+            new_rules = new_rules["rules"]
         self.rules = new_rules
         RULES_FILE.parent.mkdir(exist_ok=True)
         with open(RULES_FILE, "w", encoding="utf-8") as f:
@@ -91,8 +106,15 @@ class InterventionRecommendationEngine:
         risk_tier = risk_profile.get("risk_tier", "medium").lower()
 
         case_rule = self.rules.get(norm_case_type, {})
-        mandatory_cats = case_rule.get("mandatory", ["counselling", "legal_aid"])
-        risk_dep_cats = case_rule.get("risk_dependent", {}).get(risk_tier, [])
+        if isinstance(case_rule, list):
+            mandatory_cats = case_rule
+            risk_dep_cats = []
+        elif isinstance(case_rule, dict):
+            mandatory_cats = case_rule.get("mandatory", ["counselling", "legal_aid"])
+            risk_dep_cats = case_rule.get("risk_dependent", {}).get(risk_tier, [])
+        else:
+            mandatory_cats = ["counselling", "legal_aid"]
+            risk_dep_cats = []
 
         # Combine categories preserving priority
         all_recommended_cats = []

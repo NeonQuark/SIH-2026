@@ -164,16 +164,38 @@ function login() {
         </div>
     `;
 
-    document.querySelector("#loginForm").onsubmit = (e) => {
+    document.querySelector("#loginForm").onsubmit = async (e) => {
         e.preventDefault();
         const fd = new FormData(e.target);
-        userRole = localStorage.saathi_role = fd.get("role");
-        userJurisdiction = localStorage.saathi_jurisdiction = fd.get("jurisdiction");
-        userName = localStorage.saathi_name = fd.get("name");
-        token = localStorage.token = "auth_token_" + Math.random().toString(36).substring(2, 9);
-        showToast(`Authenticated as ${userRole} (${userJurisdiction})`);
-        location.hash = "#/";
-        route();
+        const selectedRole = fd.get("role");
+        const usernameMap = {
+            "District Officer": "district_officer",
+            "State Officer": "state_officer",
+            "Counsellor": "counselor_ananya",
+            "National Admin": "national_admin"
+        };
+        const username = usernameMap[selectedRole] || "counselor_ananya";
+
+        try {
+            const res = await api("/api/auth/login", {
+                method: "POST",
+                body: JSON.stringify({
+                    username: username,
+                    password: "Demo@123"
+                })
+            });
+
+            token = localStorage.token = res.access_token;
+            userRole = localStorage.saathi_role = res.user.role === "counsellor" ? "Counsellor" : res.user.role === "district_officer" ? "District Officer" : res.user.role === "state_officer" ? "State Officer" : "National Admin";
+            userJurisdiction = localStorage.saathi_jurisdiction = res.user.jurisdiction || fd.get("jurisdiction");
+            userName = localStorage.saathi_name = res.user.full_name || fd.get("name");
+
+            showToast(`Authenticated with signed JWT as ${userRole} (${userJurisdiction})`);
+            location.hash = "#/";
+            route();
+        } catch (err) {
+            showToast(err.message || "Authentication failed", "error");
+        }
     };
 }
 

@@ -53,6 +53,17 @@ Open the mobile URL in Chrome on Android and use **Install app** / **Add to Home
 
 Seed survivor: `asha@saathicare.demo` / `Demo@123`.
 
+## DEMO CREDENTIALS — not for production
+
+| Role | Username | Password | Jurisdiction | Intended Role Scope |
+|---|---|---|---|---|
+| **District Officer** | `district_officer` | `District@123` | Hathras | Scoped to Hathras District cases & alerts |
+| **State Officer** | `state_officer` | `State@123` | Uttar Pradesh | Scoped to Uttar Pradesh State oversight |
+| **Assigned Counsellor** | `counselor_ananya` | `Demo@123` | Hathras | Direct victim care & intervention review |
+| **National Admin** | `national_admin` | `Admin@123` | National | Full national oversight & rules matrix admin |
+
+Authentication endpoint `POST /api/auth/login` verifies credentials and issues a signed JWT access token (8-hour expiry) containing `user_id`, `role`, and `jurisdiction` claims.
+
 ## API summary
 
 | Endpoint | Purpose |

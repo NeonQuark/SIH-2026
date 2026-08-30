@@ -42,6 +42,18 @@ def run_migration(target_engine=None):
                     conn.execute(f"ALTER TABLE risk_alerts ADD COLUMN {col_name} {col_type};")
                 except Exception:
                     pass  # Column already exists
+
+            user_cols_to_add = [
+                ("username", "VARCHAR(100)"),
+                ("hashed_password", "VARCHAR(255)"),
+                ("jurisdiction", "VARCHAR(100) DEFAULT 'Hathras'"),
+                ("full_name", "VARCHAR(100)")
+            ]
+            for col_name, col_type in user_cols_to_add:
+                try:
+                    conn.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type};")
+                except Exception:
+                    pass
     except Exception:
         pass
 

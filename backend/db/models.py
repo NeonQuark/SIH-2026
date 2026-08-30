@@ -14,6 +14,20 @@ def utcnow():
 def generate_uuid():
     return str(uuid.uuid4())
 
+class User(Base):
+    """System user table for authentication and RBAC claims."""
+    __tablename__ = "users"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(100), unique=True, nullable=False, index=True)
+    hashed_password = Column(String(255), nullable=False)
+    role = Column(String(50), nullable=False, default="counsellor")  # district_officer, state_officer, counsellor, national_admin
+    jurisdiction = Column(String(100), nullable=False, default="Hathras")
+    full_name = Column(String(100), nullable=True)
+    email = Column(String(100), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+
 class VictimProfile(Base):
     """Victim profile linked to SC/ST Prevention of Atrocities Act case ID.
     
