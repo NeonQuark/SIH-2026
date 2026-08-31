@@ -557,6 +557,14 @@ def archive_resource(rid:int,authorization:str|None=Header(None)):
     with conn() as c: c.execute("UPDATE resources SET active=0 WHERE id=?",(rid,))
     return {"message":"Resource archived"}
 
+from fastapi.responses import FileResponse
+
+@app.get("/checkin")
+@app.get("/victim-chat")
+def victim_chat_page():
+    chat_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "web", "chat.html")
+    return FileResponse(chat_file)
+
 # Mount Web Application Frontend UI at /
 from fastapi.staticfiles import StaticFiles
 import os

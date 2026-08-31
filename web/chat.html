@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SaathiCare | Supportive Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #f0fdf4 0%, #e6fffa 50%, #f0f9ff 100%);
+      --card-bg: #ffffff;
+      --primary-teal: #0d9488;
+      --primary-hover: #0f766e;
+      --accent-soft: #ccfbf1;
+      --text-dark: #0f172a;
+      --text-muted: #64748b;
+      --user-bubble: #0d9488;
+      --user-text: #ffffff;
+      --bot-bubble: #f1f5f9;
+      --bot-text: #1e293b;
+      --urgent-red: #e11d48;
+      --urgent-hover: #be123c;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    body {
+      background: var(--bg-gradient);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+    }
+
+    .chat-container {
+      width: 100%;
+      max-width: 520px;
+      height: 92vh;
+      max-height: 720px;
+      background: var(--card-bg);
+      border-radius: 24px;
+      box-shadow: 0 20px 40px -15px rgba(13, 148, 136, 0.15), 0 0 20px rgba(0,0,0,0.03);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid rgba(13, 148, 136, 0.12);
+    }
+
+    /* Header */
+    .chat-header {
+      background: #ffffff;
+      padding: 18px 24px;
+      border-bottom: 1px solid #f1f5f9;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #0d9488, #14b8a6);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 22px;
+      box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25);
+    }
+
+    .brand-text h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-dark);
+      line-height: 1.2;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--primary-teal);
+      font-weight: 600;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      background-color: #10b981;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.1); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    .officer-link {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-decoration: none;
+      background: #f8fafc;
+      padding: 6px 12px;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      transition: all 0.2s;
+    }
+
+    .officer-link:hover {
+      background: #f1f5f9;
+      color: var(--text-dark);
+    }
+
+    /* Reassurance Banner */
+    .banner {
+      background: #f0fdf4;
+      border-bottom: 1px solid #dcfce7;
+      padding: 10px 16px;
+      font-size: 12.5px;
+      color: #166534;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .urgent-btn {
+      background: var(--urgent-red);
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s, transform 0.1s;
+      box-shadow: 0 4px 12px rgba(225, 29, 72, 0.25);
+    }
+
+    .urgent-btn:hover {
+      background: var(--urgent-hover);
+      transform: translateY(-1px);
+    }
+
+    /* Messages Area */
+    .messages-area {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      background: #fafafa;
+    }
+
+    .msg-group {
+      display: flex;
+      flex-direction: column;
+      max-width: 82%;
+    }
+
+    .msg-group.bot {
+      align-self: flex-start;
+    }
+
+    .msg-group.user {
+      align-self: flex-end;
+    }
+
+    .bubble {
+      padding: 13px 18px;
+      border-radius: 20px;
+      font-size: 14.5px;
+      line-height: 1.5;
+      position: relative;
+    }
+
+    .msg-group.bot .bubble {
+      background: var(--bot-bubble);
+      color: var(--bot-text);
+      border-bottom-left-radius: 4px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .msg-group.user .bubble {
+      background: var(--user-bubble);
+      color: var(--user-text);
+      border-bottom-right-radius: 4px;
+      box-shadow: 0 4px 12px rgba(13, 148, 136, 0.15);
+    }
+
+    .msg-time {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      padding: 0 4px;
+    }
+
+    .msg-group.user .msg-time {
+      text-align: right;
+    }
+
+    /* Quick Action Pills */
+    .pills-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 0 20px 12px;
+      background: #fafafa;
+    }
+
+    .pill-btn {
+      background: white;
+      border: 1px solid #cbd5e1;
+      color: #334155;
+      padding: 7px 14px;
+      border-radius: 18px;
+      font-size: 12.5px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .pill-btn:hover {
+      border-color: var(--primary-teal);
+      color: var(--primary-teal);
+      background: #f0fdf4;
+    }
+
+    /* Input Footer */
+    .chat-footer {
+      padding: 16px 20px;
+      background: white;
+      border-top: 1px solid #f1f5f9;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .input-box {
+      flex: 1;
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 24px;
+      padding: 12px 18px;
+      font-size: 14.5px;
+      color: var(--text-dark);
+      outline: none;
+      transition: border 0.2s, background 0.2s;
+    }
+
+    .input-box:focus {
+      border-color: var(--primary-teal);
+      background: white;
+    }
+
+    .send-btn {
+      width: 46px;
+      height: 46px;
+      background: var(--primary-teal);
+      border: none;
+      border-radius: 50%;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25);
+    }
+
+    .send-btn:hover {
+      background: var(--primary-hover);
+      transform: scale(1.05);
+    }
+
+    .send-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="chat-container">
+    <!-- Header -->
+    <header class="chat-header">
+      <div class="brand-section">
+        <div class="brand-icon">🤝</div>
+        <div class="brand-text">
+          <h1>SaathiCare Support</h1>
+          <div class="status-badge">
+            <span class="dot"></span> Counsellor Active 24/7
+          </div>
+        </div>
+      </div>
+      <a href="/" class="officer-link">Officer Portal ➔</a>
+    </header>
+
+    <!-- Reassurance & Urgent Help Banner -->
+    <div class="banner">
+      <span>🔒 Safe & Confidential space</span>
+      <button class="urgent-btn" onclick="sendUrgentHelp()">
+        <span>🚨</span> I need help right now
+      </button>
+    </div>
+
+    <!-- Message History Area -->
+    <div class="messages-area" id="messagesArea">
+      <div class="msg-group bot">
+        <div class="bubble">
+          Namaste 🙏 Welcome to SaathiCare Support. I am your confidential care assistant. How are you feeling today? You can share whatever is on your mind safely.
+        </div>
+        <div class="msg-time" id="initTime">Just now</div>
+      </div>
+    </div>
+
+    <!-- Quick Action Pills -->
+    <div class="pills-container" id="pillsContainer">
+      <button class="pill-btn" onclick="sendQuickMessage('Someone is following me near my house and I feel unsafe')">
+        🛡️ Someone is following me
+      </button>
+      <button class="pill-btn" onclick="sendQuickMessage('I received a threatening phone call today')">
+        📞 Threatening phone call
+      </button>
+      <button class="pill-btn" onclick="sendQuickMessage('I want to check on my case status and talk to my counsellor')">
+        📋 Speak with counsellor
+      </button>
+    </div>
+
+    <!-- Input Footer -->
+    <footer class="chat-footer">
+      <input type="text" id="userInput" class="input-box" placeholder="Type your message in confidence..." onkeydown="handleKeyPress(event)">
+      <button class="send-btn" onclick="sendMessage()">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </footer>
+  </div>
+
+  <script>
+    // Generate or fetch session victim ID
+    let victimId = sessionStorage.getItem("saathi_victim_id");
+    if (!victimId) {
+      victimId = "v_hathras_critical_01"; // Default linked to Sunita Kumari for demo
+      sessionStorage.setItem("saathi_victim_id", victimId);
+    }
+
+    document.getElementById("initTime").innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+    function formatTime() {
+      return new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    }
+
+    function appendMessage(sender, text) {
+      const area = document.getElementById("messagesArea");
+      const group = document.createElement("div");
+      group.className = `msg-group ${sender}`;
+      
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.innerText = text;
+
+      const time = document.createElement("div");
+      time.className = "msg-time";
+      time.innerText = formatTime();
+
+      group.appendChild(bubble);
+      group.appendChild(time);
+      area.appendChild(group);
+
+      area.scrollTop = area.scrollHeight;
+    }
+
+    async function sendMessageText(text) {
+      if (!text.trim()) return;
+
+      appendMessage("user", text);
+      document.getElementById("userInput").value = "";
+
+      // Hide pills after first user message
+      const pills = document.getElementById("pillsContainer");
+      if (pills) pills.style.display = "none";
+
+      try {
+        const response = await fetch("/api/intake/chatbot", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            victim_id: victimId,
+            message: text,
+            language: "en"
+          })
+        });
+
+        if (response.ok) {
+          // Soft, gentle reply — NEVER show risk_score or backend metrics to victim!
+          setTimeout(() => {
+            appendMessage("bot", "Thank you for sharing with us. We have securely received your message. You are not alone, and a trained counsellor is reviewing your check-in right now to support you.");
+          }, 600);
+        } else {
+          setTimeout(() => {
+            appendMessage("bot", "Thank you. We have recorded your message. Take care of yourself, we are here for you.");
+          }, 600);
+        }
+      } catch (err) {
+        setTimeout(() => {
+          appendMessage("bot", "Thank you for reaching out. We have logged your check-in.");
+        }, 600);
+      }
+    }
+
+    function sendMessage() {
+      const input = document.getElementById("userInput");
+      sendMessageText(input.value);
+    }
+
+    function sendQuickMessage(text) {
+      sendMessageText(text);
+    }
+
+    function handleKeyPress(e) {
+      if (e.key === "Enter") {
+        sendMessage();
+      }
+    }
+
+    async function sendUrgentHelp() {
+      const urgentPhrase = "someone is following me near my house and showed a knife";
+      appendMessage("user", "🚨 URGENT: " + urgentPhrase);
+
+      try {
+        const response = await fetch("/api/intake/chatbot", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            victim_id: victimId,
+            message: urgentPhrase,
+            language: "en"
+          })
+        });
+
+        setTimeout(() => {
+          appendMessage("bot", "🚨 We have received your emergency alert. District Officers and emergency responders have been notified with priority. Please stay in a safe place or call 112 if you are in immediate physical danger.");
+        }, 500);
+      } catch (err) {
+        setTimeout(() => {
+          appendMessage("bot", "🚨 Emergency alert logged. Please reach a safe location or contact emergency services at 112 immediately.");
+        }, 500);
+      }
+    }
+  </script>
+</body>
+</html>

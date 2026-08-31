@@ -107,6 +107,7 @@ const layout = (content) => `
                 <div class="availability">
                     <i></i>
                     System Online · Role: <b>${userRole}</b> (${userJurisdiction})
+                    <a href="/checkin" target="_blank" style="background:rgba(13,148,136,0.15); color:#0f766e; text-decoration:none; padding:6px 12px; border-radius:20px; font-weight:600; font-size:12px; border:1px solid rgba(13,148,136,0.3); margin-left:12px; display:inline-flex; align-items:center; gap:4px;">💬 Victim Chat Portal ➔</a>
                 </div>
             </header>
             ${content}
