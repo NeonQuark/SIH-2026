@@ -89,7 +89,7 @@ def test_zero_pii_in_payloads():
         db.add(ds)
         db.commit()
 
-        cases = dashboard_service.get_high_risk_cases(role="national_officer", db=db)
+        cases = dashboard_service.get_high_risk_cases(role="national_officer", limit=500, db=db)
         case_item = next((c for c in cases if c["victim_id"] == vid), None)
         assert case_item is not None
 

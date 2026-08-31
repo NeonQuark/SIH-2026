@@ -123,9 +123,19 @@ def seed_demo_users(db: Optional[Session] = None):
         db = SessionLocal()
         close_session = True
     try:
+        from sqlalchemy import or_
         for u in DEMO_USERS:
-            existing = db.query(User).filter_by(username=u["username"]).first()
-            if not existing:
+            existing = db.query(User).filter(
+                or_(User.username == u["username"], User.email == u["email"])
+            ).first()
+            if existing:
+                existing.username = u["username"]
+                existing.role = u["role"]
+                existing.jurisdiction = u["jurisdiction"]
+                existing.full_name = u["full_name"]
+                if not existing.hashed_password:
+                    existing.hashed_password = hash_password(u["password"])
+            else:
                 user = User(
                     username=u["username"],
                     hashed_password=hash_password(u["password"]),
